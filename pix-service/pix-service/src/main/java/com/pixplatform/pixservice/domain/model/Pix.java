@@ -20,6 +20,13 @@ public class Pix {
         this.createdAt = LocalDateTime.now();
     }
 
+    public void complete() {
+        if (this.status != PixStatus.CREATED) {
+            throw new IllegalStateException("Apenas um Pix CREATED pode ser completado");
+        }
+        this.status = PixStatus.COMPLETED;
+    }
+
     public UUID getId() {
         return id;
     }
@@ -58,12 +65,5 @@ public class Pix {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
-    }
-
-    public void complete() {
-        if (this.status != PixStatus.CREATED) {
-            throw new IllegalStateException("Apenas um Pix CREATED pode ser completado");
-        }
-        this.status = PixStatus.COMPLETED;
     }
 }

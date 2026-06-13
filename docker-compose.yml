@@ -12,5 +12,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  rabbitmq-pix:
+    image: rabbitmq:3-management-alpine
+    container_name: broker_pix
+    restart: unless-stopped
+    ports:
+      - "5672:5672"   # Porta para as aplicações (Java/Node/.NET) se conectarem
+      - "15672:15672" # Porta da Interface Gráfica (Painel de Administração)
+
 volumes:
   postgres_data:
