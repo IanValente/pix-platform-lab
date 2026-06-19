@@ -20,5 +20,17 @@ services:
       - "5672:5672"   # Porta para as aplicações (Java/Node/.NET) se conectarem
       - "15672:15672" # Porta da Interface Gráfica (Painel de Administração)
 
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver_db
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=PixPlatform@2026 # Senha forte obrigatória no SQL Server
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+
 volumes:
   postgres_data:
+  sqlserver_data: # Adicionamos o volume para não perder os dados se o container reiniciar

@@ -1,0 +1,28 @@
+<div style="border: 1px solid #ccc; padding: 20px; width: 300px; font-family: sans-serif;">
+  <h2>Fazer um Pix</h2>
+  
+  <label>Chave Pix:</label><br>
+  <input type="text" [(ngModel)]="chavePix" placeholder="Email, CPF..."><br><br>
+
+  <label>Valor (R$):</label><br>
+  <input type="number" [(ngModel)]="valor"><br><br>
+
+  <button (click)="enviar()">Transferir</button>
+
+  <p style="color: blue;">{{ mensagem }}</p>
+</div>
+
+<div style="border: 1px solid #ccc; padding: 20px; width: 300px; margin-top: 20px; font-family: sans-serif;">
+  <h2>Consultar Status</h2>
+  
+  <label>ID da Transação:</label><br>
+  <input type="text" [(ngModel)]="consultaId" placeholder="Cole o UUID aqui"><br><br>
+
+  <button (click)="consultar()">Consultar</button>
+
+  <div *ngIf="statusRetornado" style="margin-top: 15px; background: #eee; padding: 10px;">
+    <p><strong>Status:</strong> {{ statusRetornado.status }}</p>
+    <p><strong>Valor:</strong> R$ {{ statusRetornado.amount }}</p>
+    <p><strong>Data:</strong> {{ statusRetornado.processedAt }}</p>
+  </div>
+</div>

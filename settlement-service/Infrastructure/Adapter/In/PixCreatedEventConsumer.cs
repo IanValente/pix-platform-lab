@@ -34,9 +34,21 @@ public class PixCreatedEventConsumer : BackgroundService
         var factory = new ConnectionFactory { HostName = "localhost" };
         _connection = factory.CreateConnection();
         _channel = _connection.CreateModel();
-        _channel.QueueDeclare(queue: QueueName, durable: true, exclusive: false, autoDelete: false, arguments: null);
-    }
 
+        // 1. Declaramos a fila do cemitério (DLQ)
+        var dlqName = "pix.created.dlq";
+        _channel.QueueDeclare(queue: dlqName, durable: true, exclusive: false, autoDelete: false, arguments: null);
+
+        // 2. Criamos as regras (Arguments) da fila principal
+        var args = new Dictionary<string, object>
+        {
+            { "x-dead-letter-exchange", "" }, // Usa a exchange default (direta)
+            { "x-dead-letter-routing-key", dlqName } // Se rejeitar, manda pra DLQ
+        };
+
+        // 3. Declaramos a fila principal injetando as regras
+        _channel.QueueDeclare(queue: QueueName, durable: true, exclusive: false, autoDelete: false, arguments: args);
+    }
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
         stoppingToken.ThrowIfCancellationRequested();
@@ -44,38 +56,43 @@ public class PixCreatedEventConsumer : BackgroundService
         
         consumer.Received += (model, ea) =>
         {
-            var body = ea.Body.ToArray();
-            var message = Encoding.UTF8.GetString(body);
-            
-            _logger.LogInformation($"[Settlement Service] JSON recebido: {message}");
-
-            try
+            // 1. Extrai o Correlation ID dos cabeçalhos (Headers) do RabbitMQ
+            string correlationId = Guid.NewGuid().ToString(); // Valor padrão caso não venha
+            if (ea.BasicProperties.Headers != null && ea.BasicProperties.Headers.ContainsKey("X-Correlation-ID"))
             {
-                // 1. Desserializa o JSON para o nosso DTO
-                // PropertyNameCaseInsensitive = true lida com a diferença de maiúsculas/minúsculas entre o Java e o C#
-                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                var pixEvent = JsonSerializer.Deserialize<PixCreatedEventDto>(message, options);
-
-                if (pixEvent != null)
-                {
-                    // 2. Cria um escopo isolado de Injeção de Dependência (Melhor prática para Background Services)
-                    using var scope = _serviceProvider.CreateScope();
-                    var processSettlementUseCase = scope.ServiceProvider.GetRequiredService<IProcessSettlementUseCase>();
-
-                    // 3. Chama a Regra de Negócio (O Caso de Uso Hexagonal)
-                    processSettlementUseCase.Execute(pixEvent.id, pixEvent.amount);
-                    
-                    _logger.LogInformation($"[Settlement Service] Liquidação processada com sucesso para o Pix: {pixEvent.id}");
-                }
-
-                // 4. Confirma pro RabbitMQ apagar a mensagem
-                _channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false); 
+                var bytes = (byte[])ea.BasicProperties.Headers["X-Correlation-ID"];
+                correlationId = Encoding.UTF8.GetString(bytes);
             }
-            catch (Exception ex)
+
+            // 2. A MÁGICA: Cria um escopo de log. Todo logger executado dentro deste 'using' terá o ID embutido!
+            using (_logger.BeginScope(new Dictionary<string, object> { ["CorrelationId"] = correlationId }))
             {
-                _logger.LogError($"Erro ao processar mensagem: {ex.Message}");
-                // Se der erro, joga de volta pra fila (Nack) para não perder o dinheiro!
-                _channel.BasicNack(deliveryTag: ea.DeliveryTag, multiple: false, requeue: true);
+                var body = ea.Body.ToArray();
+                var message = Encoding.UTF8.GetString(body);
+                
+                _logger.LogInformation($"[Settlement Service] Iniciando processamento da mensagem.");
+
+                try
+                {
+                    var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                    var pixEvent = JsonSerializer.Deserialize<PixCreatedEventDto>(message, options);
+
+                    if (pixEvent != null)
+                    {
+                        using var scope = _serviceProvider.CreateScope();
+                        var processSettlementUseCase = scope.ServiceProvider.GetRequiredService<IProcessSettlementUseCase>();
+                        processSettlementUseCase.Execute(pixEvent.id, pixEvent.amount);
+                    }
+
+                    _channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false); 
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Erro crítico no processamento. Movendo para DLQ.");
+                    
+                    // O requeue: false ativará a regra x-dead-letter que configuramos acima!
+                    _channel.BasicNack(deliveryTag: ea.DeliveryTag, multiple: false, requeue: false);
+                }
             }
         };
 

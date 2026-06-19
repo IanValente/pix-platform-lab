@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 
 @RestController
 @RequestMapping("/api/v1/pix")
+@CrossOrigin(origins = "*")
 public class PixController {
 
     // O Controller conhece apenas a PORTA (interface), não a implementação. Desacoplamento perfeito!
