@@ -23,9 +23,9 @@ jobs:
       with:
         dotnet-version: 8.0.x
 
-    # 4. Baixa as dependências (equivalente ao mvn install)
+    # 4. Baixa as dependências
     - name: Restaurar dependências
-      run: dotnet restore ./settlement-service/SettlementService.csproj
+      run: dotnet restore ./settlement-service-tests/SettlementService.Tests.csproj
 
     # 5. O GRANDE MOMENTO: Roda a suíte de testes xUnit que você acabou de criar!
     - name: Executar Testes Unitários
