@@ -15,11 +15,11 @@ jobs:
     steps:
     # 2. Faz o download do seu código para dentro do robô
     - name: Checkout do código
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     # 3. Instala o motor do C# no robô
     - name: Configurar o .NET 8
-      uses: actions/setup-dotnet@v3
+      uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
 
