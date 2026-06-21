@@ -31,6 +31,13 @@ services:
     volumes:
       - sqlserver_data:/var/opt/mssql
 
+  pix-frontend:
+    build:
+      context: ./pix-frontend
+    ports:
+      - "4200:80" # Mapeia a porta 4200 da sua máquina para a porta 80 do NGINX no container
+
+
 volumes:
   postgres_data:
   sqlserver_data: # Adicionamos o volume para não perder os dados se o container reiniciar

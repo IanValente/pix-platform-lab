@@ -17,6 +17,10 @@ public class ProcessSettlementService : IProcessSettlementUseCase
 
     public Settlement Execute(string pixTransactionId, decimal amount)
     {
+        if (amount <= 0)
+        {
+            throw new ArgumentException("O valor do Pix deve ser maior que zero.");
+        }
         // 1. Instancia a regra de negócio
         var settlement = new Settlement(pixTransactionId, amount);
 

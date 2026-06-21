@@ -1,0 +1,32 @@
+name: .NET CI Pipeline
+
+# 1. GATILHO: Quando a esteira deve ligar?
+# Vai rodar toda vez que alguém fizer um push (enviar código) para a branch main
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest # O robô é um servidor Linux temporário cedido pelo GitHub
+
+    steps:
+    # 2. Faz o download do seu código para dentro do robô
+    - name: Checkout do código
+      uses: actions/checkout@v3
+
+    # 3. Instala o motor do C# no robô
+    - name: Configurar o .NET 8
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 8.0.x
+
+    # 4. Baixa as dependências (equivalente ao mvn install)
+    - name: Restaurar dependências
+      run: dotnet restore ./settlement-service/SettlementService.csproj
+
+    # 5. O GRANDE MOMENTO: Roda a suíte de testes xUnit que você acabou de criar!
+    - name: Executar Testes Unitários
+      run: dotnet test ./settlement-service-tests/SettlementService.Tests.csproj --no-restore --verbosity normal
