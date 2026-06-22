@@ -31,7 +31,12 @@ public class PixCreatedEventConsumer : BackgroundService
 
     private void InitRabbitMq()
     {
-        var factory = new ConnectionFactory { HostName = "localhost" };
+        var factory = new ConnectionFactory
+        {
+            // Tenta pegar o nome da rede do Docker. Se for nulo (rodando fora do Docker), usa localhost.
+            HostName = Environment.GetEnvironmentVariable("RabbitMq__HostName") ?? "localhost"
+        };
+        
         _connection = factory.CreateConnection();
         _channel = _connection.CreateModel();
 

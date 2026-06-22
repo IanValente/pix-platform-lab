@@ -42,6 +42,12 @@ builder.Services.AddCors(options =>
 builder.Services.AddControllers();
 
 var app = builder.Build();
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<SettlementService.Infrastructure.Adapter.Out.Database.SettlementDbContext>();
+    // O comando Migrate lê a pasta Migrations e cria/atualiza as tabelas no SQL Server
+    dbContext.Database.Migrate(); 
+}
 app.UseCors("PermitirAngular");
 // === ATIVAÇÃO DO PIPELINE (NOVO) ===
 app.UseExceptionHandler(); // Diz para o servidor: "Se der erro, use o tratador que cadastrei acima"

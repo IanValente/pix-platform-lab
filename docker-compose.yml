@@ -38,6 +38,7 @@ services:
     build:
       context: ./pix-service
     container_name: java_pix_api
+    restart: on-failure 
     ports:
       - "8080:8080"
     environment: # O Docker reescreve o application.yml do Spring Boot aqui!
@@ -52,10 +53,11 @@ services:
     build:
       context: ./settlement-service
     container_name: csharp_settlement_api
+    restart: on-failure
     ports:
-      - "5000:8080" # No .NET 8 o Docker expõe a 8080 por padrão internamente
+      - "5193:8080" # No .NET 8 o Docker expõe a 8080 por padrão internamente
     environment: # O Docker reescreve o appsettings.json do C# aqui!
-      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=SettlementDb;User Id=sa;Password=PixPlatform@2026;TrustServerCertificate=True;
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=PixSettlementDb;User Id=sa;Password=PixPlatform@2026;TrustServerCertificate=True;
       - RabbitMq__HostName=rabbitmq-pix
     depends_on:
       - sqlserver
