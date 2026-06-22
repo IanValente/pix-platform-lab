@@ -1,4 +1,5 @@
 services:
+  # 1. INFRAESTRUTURA DE DADOS
   postgres-pix:
     image: postgres:15-alpine
     container_name: db_pix
@@ -12,32 +13,65 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  rabbitmq-pix:
-    image: rabbitmq:3-management-alpine
-    container_name: broker_pix
-    restart: unless-stopped
-    ports:
-      - "5672:5672"   # Porta para as aplicações (Java/Node/.NET) se conectarem
-      - "15672:15672" # Porta da Interface Gráfica (Painel de Administração)
-
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: sqlserver_db
     environment:
       - ACCEPT_EULA=Y
-      - SA_PASSWORD=PixPlatform@2026 # Senha forte obrigatória no SQL Server
+      - SA_PASSWORD=PixPlatform@2026
     ports:
       - "1433:1433"
     volumes:
       - sqlserver_data:/var/opt/mssql
 
+  # 2. INFRAESTRUTURA DE MENSAGERIA
+  rabbitmq-pix:
+    image: rabbitmq:3-management-alpine
+    container_name: broker_pix
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  # 3. BACK-END PRODUTOR (JAVA)
+  pix-service:
+    build:
+      context: ./pix-service
+    container_name: java_pix_api
+    ports:
+      - "8080:8080"
+    environment: # O Docker reescreve o application.yml do Spring Boot aqui!
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-pix:5432/pix_db
+      - SPRING_RABBITMQ_HOST=rabbitmq-pix
+    depends_on:
+      - postgres-pix
+      - rabbitmq-pix
+
+  # 4. BACK-END CONSUMIDOR (C#)
+  settlement-service:
+    build:
+      context: ./settlement-service
+    container_name: csharp_settlement_api
+    ports:
+      - "5000:8080" # No .NET 8 o Docker expõe a 8080 por padrão internamente
+    environment: # O Docker reescreve o appsettings.json do C# aqui!
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=SettlementDb;User Id=sa;Password=PixPlatform@2026;TrustServerCertificate=True;
+      - RabbitMq__HostName=rabbitmq-pix
+    depends_on:
+      - sqlserver
+      - rabbitmq-pix
+
+  # 5. FRONT-END (ANGULAR)
   pix-frontend:
     build:
       context: ./pix-frontend
+    container_name: angular_pix_ui
     ports:
-      - "4200:80" # Mapeia a porta 4200 da sua máquina para a porta 80 do NGINX no container
-
+      - "4200:80"
+    depends_on:
+      - pix-service
+      - settlement-service
 
 volumes:
   postgres_data:
-  sqlserver_data: # Adicionamos o volume para não perder os dados se o container reiniciar
+  sqlserver_data:

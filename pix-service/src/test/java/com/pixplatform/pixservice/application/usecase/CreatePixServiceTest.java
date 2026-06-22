@@ -1,6 +1,7 @@
 package com.pixplatform.pixservice.application.usecase;
 
 import com.pixplatform.pixservice.application.port.out.SavePixPort;
+import com.pixplatform.pixservice.application.port.out.SendPixCreatedEventPort; // 1. Novo import adicionado
 import com.pixplatform.pixservice.domain.model.Pix;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -17,15 +18,17 @@ import static org.mockito.Mockito.*;
 class CreatePixServiceTest {
 
     private SavePixPort savePixPortMock;
+    private SendPixCreatedEventPort sendPixCreatedEventPortMock; // 2. Variável da segunda porta
     private CreatePixService createPixService;
 
     @BeforeEach
     void setUp() {
-        // Cria um dublê falso da porta de banco de dados
+        // Cria os dublês falsos
         savePixPortMock = Mockito.mock(SavePixPort.class);
+        sendPixCreatedEventPortMock = Mockito.mock(SendPixCreatedEventPort.class); // 3. Inicializa o dublê
 
-        // Injeta o dublê falso no nosso serviço real
-        createPixService = new CreatePixService(savePixPortMock);
+        // 4. Injeta as DUAS dependências no serviço real para a compilação passar
+        createPixService = new CreatePixService(savePixPortMock, sendPixCreatedEventPortMock);
     }
 
     @Test
