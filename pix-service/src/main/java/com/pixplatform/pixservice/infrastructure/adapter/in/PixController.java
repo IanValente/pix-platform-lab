@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/pix")
@@ -25,6 +26,12 @@ public class PixController {
 
         PixResponse response = new PixResponse(pix.getId().toString(), pix.getStatus().name());
         return ResponseEntity.ok(response);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> handleValidationException(IllegalArgumentException ex) {
+        // Agora o Java devolve um JSON bonito: { "mensagem": "O valor do Pix deve ser maior que zero." }
+        return ResponseEntity.badRequest().body(Map.of("mensagem", ex.getMessage()));
     }
 }
 

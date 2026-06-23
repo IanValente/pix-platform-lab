@@ -19,6 +19,9 @@ public class CreatePixService implements CreatePixUseCase {
 
     @Override
     public Pix execute(String key, BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("O valor do Pix deve ser maior que zero.");
+        }
         Pix pix = new Pix(key, amount);
         Pix savedPix = savePixPort.save(pix);
 

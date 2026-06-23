@@ -1,58 +1,62 @@
-import { ChangeDetectorRef, Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { PixService } from '../pix.service';
 import { FormsModule } from '@angular/forms'; // Necessário para pegar dados do input HTML
-import { CommonModule } from '@angular/common'; // Necessário para o *ngIf no Standalone Component
 import { interval, switchMap, takeWhile, catchError, of } from 'rxjs'; // OS PODERES DO RXJS
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-pix-transfer', // O nome da "tag" HTML que esse componente vai gerar
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, CommonModule],
   templateUrl: './pix-transfer.component.html',
   styleUrl: './pix-transfer.component.css'
 })
 export class PixTransferComponent {
-  // Variáveis que vão se conectar com o HTML
-  chavePix: string = '';
-  valor: number = 0;
-  mensagem: string = '';
+  // Variáveis que vão se conectar com o HTML via Signals
+  chavePix = signal('');
+  valor = signal(0);
+  mensagem = signal('');
 
   // Variáveis para a nova sessão de consulta
-  consultaId: string = '';
-  statusRetornado: any = null; // 'any' permite receber o JSON dinâmico do C#
+  consultaId = signal('');
+  statusRetornado = signal<any | null>(null);
 
   // Injetando nosso Service (Inversão de Controle)
-  constructor(private pixService: PixService,
-              private cdr: ChangeDetectorRef
-  ) {}
+  constructor(private pixService: PixService) {}
 
   enviar() {
-    this.mensagem = 'Enviando...';
-    this.statusRetornado = null; // Limpa a tela se for um novo Pix
+    this.mensagem.set('Enviando...');
+    this.statusRetornado.set(null); // Limpa a tela se for um novo Pix
     
     // .subscribe() é o gatilho que diz: "Pode executar o HTTP agora, e me avise quando voltar"
-    this.pixService.createPix(this.chavePix, this.valor).subscribe({
+    this.pixService.createPix(this.chavePix(), this.valor()).subscribe({
       next: (resposta : any) => { // Equivalente ao HTTP 200 OK
-        this.mensagem = 'Pix enviado com sucesso pro Java!';
-        this.consultaId = resposta.transactionId;
-        this.chavePix = ''; // Limpa o formulário
-        this.valor = 0;
+        this.mensagem.set('Pix enviado com sucesso pro Java!');
+        this.consultaId.set(resposta.transactionId);
+        this.chavePix.set(''); // Limpa o formulário
+        this.valor.set(0);
 
         // Em vez de só dar sucesso, iniciamos a perseguição ao C#!
-        this.iniciarPolling(this.consultaId);
+        this.iniciarPolling(this.consultaId());
       },
       error: (erro) => { // Equivalente ao Catch de uma Exception
-        this.mensagem = 'Erro ao conectar com o servidor.';
-        console.error(erro);
+        const mensagemBackend =
+          erro?.error?.mensagem ||
+          (typeof erro.error === 'string' ? erro.error : null);
 
-        this.cdr.detectChanges();
+        if (mensagemBackend) {
+          this.mensagem.set(`Aviso: ${mensagemBackend}`);
+        } else {
+          this.mensagem.set('Erro ao conectar com o servidor.');
+        }
+        console.error(erro);
       }
     });
   }
 
   iniciarPolling(id: string) {
-    this.mensagem = 'Processando liquidação em background... 🔄';
-    this.cdr.detectChanges();
+    this.mensagem.set('Processando liquidação em background... 🔄');
 
     // 1. Inicia o relógio a cada 2 segundos (2000 ms)
     interval(2000).pipe(
@@ -64,14 +68,14 @@ export class PixTransferComponent {
       )),
       // 3. Continua o relógio ENQUANTO o retorno for 'null'. 
       // O 'true' final significa "emita o valor que quebrou a regra (o JSON com sucesso) antes de parar"
-      takeWhile((dados) => dados === null, true) 
+      takeWhile((dados) => dados === null, true),
+      takeUntilDestroyed()
     ).subscribe({
       next: (dadosDaLiquidacao) => {
         if (dadosDaLiquidacao !== null) {
           // Quando finalmente não for null, o C# encontrou!
-          this.statusRetornado = dadosDaLiquidacao;
-          this.mensagem = 'Pix Liquidado com Sucesso! ✅';
-          this.cdr.detectChanges(); // Atualiza a tela
+          this.statusRetornado.set(dadosDaLiquidacao);
+          this.mensagem.set('Pix Liquidado com Sucesso! ✅');
         }
       }
     });
@@ -79,14 +83,12 @@ export class PixTransferComponent {
 
   // NOVO MÉTODO
   consultar() {
-    this.pixService.checkStatus(this.consultaId).subscribe({
+    this.pixService.checkStatus(this.consultaId()).subscribe({
       next: (dados) => {
-        this.statusRetornado = dados;
-        this.cdr.detectChanges(); // O pulo do gato para a tela atualizar
+        this.statusRetornado.set(dados);
       },
       error: (erro) => {
-        this.statusRetornado = { status: 'Não encontrado ou erro na rede' };
-        this.cdr.detectChanges();
+        this.statusRetornado.set({ status: 'Não encontrado ou erro na rede' });
       }
     });
   }
