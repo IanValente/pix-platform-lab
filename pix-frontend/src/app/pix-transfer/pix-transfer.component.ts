@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { PixService } from '../pix.service';
 import { FormsModule } from '@angular/forms'; // Necessário para pegar dados do input HTML
 import { interval, switchMap, takeWhile, catchError, of } from 'rxjs'; // OS PODERES DO RXJS
@@ -13,6 +13,8 @@ import { CommonModule } from '@angular/common';
   styleUrl: './pix-transfer.component.css'
 })
 export class PixTransferComponent {
+  private readonly destroyRef = inject(DestroyRef);
+
   // Variáveis que vão se conectar com o HTML via Signals
   chavePix = signal('');
   valor = signal(0);
@@ -69,7 +71,7 @@ export class PixTransferComponent {
       // 3. Continua o relógio ENQUANTO o retorno for 'null'. 
       // O 'true' final significa "emita o valor que quebrou a regra (o JSON com sucesso) antes de parar"
       takeWhile((dados) => dados === null, true),
-      takeUntilDestroyed()
+      takeUntilDestroyed(this.destroyRef)
     ).subscribe({
       next: (dadosDaLiquidacao) => {
         if (dadosDaLiquidacao !== null) {
